@@ -33,6 +33,8 @@ async def main() -> None:
         RiskParameters(
             max_position_percent=float(os.getenv("MAX_POSITION_PERCENT", "0.2")),
             max_drawdown=float(os.getenv("MAX_DRAWDOWN", "5.0")),
+            min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.5")),
+            risk_mode=os.getenv("RISK_MODE", "normal"),
         )
     )
     executor = Executor()
