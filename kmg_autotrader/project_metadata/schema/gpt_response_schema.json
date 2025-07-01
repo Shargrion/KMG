@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GPTResponse",
+  "type": "object",
+  "properties": {
+    "direction": {"type": "string"},
+    "size": {"type": "number"},
+    "stop_loss": {"type": "number"},
+    "take_profit": {"type": "number"},
+    "confidence": {"type": "number"}
+  },
+  "required": ["direction", "size", "stop_loss", "take_profit", "confidence"]
+}
