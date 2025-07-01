@@ -16,6 +16,7 @@ class RiskManager:
     """Validate trading signals against risk parameters."""
 
     def __init__(self, params: RiskParameters) -> None:
+        """Initialize with risk parameters."""
         self._params = params
         self._current_drawdown = 0.0
 
@@ -27,4 +28,5 @@ class RiskManager:
         if self._current_drawdown > self._params.max_drawdown:
             logging.error("Drawdown limit reached")
             return False
+        logging.debug("Risk validation passed for size %.2f", size)
         return True

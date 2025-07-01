@@ -1,7 +1,6 @@
 """Machine learning model trainer."""
 
 from pathlib import Path
-from typing import Any
 
 import joblib
 from sklearn.ensemble import GradientBoostingClassifier

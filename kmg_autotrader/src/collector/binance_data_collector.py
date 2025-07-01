@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Iterable, List
+from typing import Any, Iterable
 
 import asyncpg
 from binance import AsyncClient, BinanceSocketManager
@@ -29,6 +29,7 @@ class BinanceDataCollector:
     """Collects data from Binance and stores it in PostgreSQL."""
 
     def __init__(self, symbol: str = "BTCUSDT", interval: str = "1m") -> None:
+        """Initialize the collector with trading pair and candle interval."""
         self._symbol = symbol
         self._interval = interval
         self._db_url = os.getenv("POSTGRES_URL")
@@ -62,7 +63,7 @@ class BinanceDataCollector:
         )
         await self._bulk_insert(klines)
 
-    async def _bulk_insert(self, klines: Iterable[List[Any]]) -> None:
+    async def _bulk_insert(self, klines: Iterable[list[Any]]) -> None:
         assert self._conn
         records = [
             (
@@ -105,6 +106,7 @@ class BinanceDataCollector:
                 await self._bulk_insert([candle])
 
     async def collect(self) -> None:
+        """Collect historical and real-time data then close connections."""
         await self._connect()
         try:
             await self._fetch_historical()
