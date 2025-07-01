@@ -15,4 +15,4 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "Copy .env.example to .env and set credentials."
-echo "Run: python main.py"
+python main.py

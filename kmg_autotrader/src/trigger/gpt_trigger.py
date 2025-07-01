@@ -29,3 +29,8 @@ class GPTTrigger:
             await asyncio.sleep(3600)
             async with self._lock:
                 self._count = 0
+
+    async def check_new_signals(self) -> None:
+        """Placeholder to check and process new trading signals."""
+        logging.info("Checking for new GPT signals")
+        await self.allow()

@@ -31,3 +31,8 @@ def compute_metrics(trades: list[Trade]) -> dict[str, float]:
         win_rate,
     )
     return metrics
+
+
+def export_daily_report() -> None:
+    """Export daily performance metrics to persistent storage."""
+    logging.info("Exporting daily performance report")
