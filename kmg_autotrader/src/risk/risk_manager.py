@@ -18,6 +18,7 @@ class RiskParameters:
     max_drawdown: float
     min_confidence: float = 0.5
     risk_mode: str = "normal"  # "normal" or "conservative"
+    min_gpt_trigger_confidence: float = 0.8
 
 
 ML_MODEL_PATH = (

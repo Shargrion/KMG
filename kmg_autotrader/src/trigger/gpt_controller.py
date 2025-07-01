@@ -68,7 +68,8 @@ class GPTController:
                     ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     prompt TEXT,
                     response TEXT,
-                    success INTEGER
+                    success INTEGER,
+                    reason TEXT
                 )
                 """
             )
@@ -130,8 +131,13 @@ class GPTController:
         finally:
             with sqlite3.connect(DB_PATH) as conn:
                 conn.execute(
-                    "INSERT INTO gpt_logs(prompt, response, success) VALUES (?, ?, ?)",
-                    (prompt, raw_response, success),
+                    "INSERT INTO gpt_logs(prompt, response, success, reason) VALUES (?, ?, ?, ?)",
+                    (
+                        prompt,
+                        raw_response,
+                        success,
+                        self._last_error or "",
+                    ),
                 )
 
     def request_decision(

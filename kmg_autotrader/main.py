@@ -35,6 +35,9 @@ async def main() -> None:
             max_drawdown=float(os.getenv("MAX_DRAWDOWN", "5.0")),
             min_confidence=float(os.getenv("MIN_CONFIDENCE", "0.5")),
             risk_mode=os.getenv("RISK_MODE", "normal"),
+            min_gpt_trigger_confidence=float(
+                os.getenv("MIN_GPT_TRIGGER_CONFIDENCE", "0.8")
+            ),
         )
     )
     executor = Executor()

@@ -14,6 +14,7 @@ class Signal:
     direction: str
     reason: str
     trigger_type: str
+    score: float = 1.0
 
 
 def evaluate_rules(market_data: list[float]) -> list[Signal]:
