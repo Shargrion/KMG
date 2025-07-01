@@ -12,6 +12,7 @@ import openai
 from pydantic import BaseModel, ValidationError
 
 from src.collector.binance_data_collector import Candle
+from src.evaluator.rule_evaluator import evaluate_rules
 from src.risk.risk_manager import RiskParameters
 from src.webui.alerts.telegram_bot import send_alert
 
@@ -36,6 +37,25 @@ class GPTController:
 
         openai.api_key = api_key
         self._init_db()
+        with SCHEMA_PATH.open("r") as f:
+            self._schema = json.load(f)
+        self._last_error: str | None = None
+
+    # ------------------------------------------------------------------
+    def _validate_schema(self, data: dict) -> None:
+        """Validate response dict against loaded JSON schema."""
+
+        for key in self._schema.get("required", []):
+            if key not in data:
+                raise ValueError(f"Missing required field: {key}")
+        for key, prop in self._schema.get("properties", {}).items():
+            if key not in data:
+                continue
+            t = prop.get("type")
+            if t == "number" and not isinstance(data[key], (int, float)):
+                raise ValueError(f"Field {key} must be a number")
+            if t == "string" and not isinstance(data[key], str):
+                raise ValueError(f"Field {key} must be a string")
 
     def _init_db(self) -> None:
         """Create the log table if necessary."""
@@ -86,6 +106,7 @@ class GPTController:
             raw_response = completion.choices[0].message.content
             logging.debug("GPT raw response: %s", raw_response)
             parsed = json.loads(raw_response)
+            self._validate_schema(parsed)
             response = GPTResponse(**parsed)
             logging.info(
                 "GPT response validated with confidence %.2f in %.2fs",
@@ -93,9 +114,16 @@ class GPTController:
                 time.perf_counter() - start,
             )
             success = 1
+            self._last_error = None
             return response
-        except (openai.error.OpenAIError, json.JSONDecodeError, ValidationError) as exc:
+        except (
+            openai.error.OpenAIError,
+            json.JSONDecodeError,
+            ValidationError,
+            ValueError,
+        ) as exc:
             logging.error("GPT error: %s", exc)
+            self._last_error = str(exc)
             raw_response = raw_response or str(exc)
             send_alert(f"GPT error: {exc}")
             return None
@@ -115,5 +143,13 @@ class GPTController:
         """Build prompt from context, send to GPT and return parsed response."""
 
         prompt = self.build_prompt(candles, position, risk)
-        return self.send_prompt(prompt)
+        response = self.send_prompt(prompt)
+        if response is None:
+            logging.warning(
+                "Falling back to rule evaluator due to GPT failure: %s",
+                self._last_error,
+            )
+            evaluate_rules([c.close for c in candles])
+            return None
+        return response
 
