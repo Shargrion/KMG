@@ -7,6 +7,7 @@ from typing import Iterable, TYPE_CHECKING, Any
 from src.collector.binance_data_collector import Candle
 from src.evaluator.rule_evaluator import Signal
 from src.risk.risk_manager import RiskManager
+from src.webui.alerts.telegram_bot import send_alert
 from .gpt_controller import GPTController
 
 if TYPE_CHECKING:  # pragma: no cover - only for typing
@@ -50,6 +51,7 @@ class GPTTrigger:
         async with self._lock:
             if self._count >= self._max_per_hour:
                 logging.warning("GPT call blocked: limit reached")
+                send_alert("GPT limit reached: signal skipped")
                 return False
             self._count += 1
             logging.debug("GPT call allowed (%d/%d)", self._count, self._max_per_hour)
@@ -72,6 +74,7 @@ class GPTTrigger:
 
         if signal.direction not in {"BUY", "SELL"}:
             logging.warning("Unsupported signal direction: %s", signal.direction)
+            send_alert(f"Signal rejected: unsupported direction {signal.direction}")
             return False
 
         if not await self.allow():
@@ -81,14 +84,21 @@ class GPTTrigger:
             list(candles)[-10:], position, self._risk_manager._params
         )
         if response is None:
+            send_alert("Signal rejected: GPT response invalid")
             return False
 
         if not self._risk_manager.validate(response.size):
             logging.warning("GPT proposal rejected by risk manager")
+            send_alert("Signal rejected by risk manager")
             return False
 
         order = Order(asset=signal.asset, side=response.direction, quantity=response.size)
-        return self._executor.place_order(order)
+        success = self._executor.place_order(order)
+        if success:
+            send_alert(
+                f"Trade executed: {order.side} {order.quantity:.4f} {order.asset}"
+            )
+        return success
 
     def check_new_signals(self) -> None:
         """Placeholder for polling new trading signals."""
