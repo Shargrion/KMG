@@ -9,12 +9,15 @@ from pathlib import Path
 import pickle
 
 from src.webui.alerts.telegram_bot import send_alert
+from src.analysis import performance_analyzer
 
 
 @dataclass
 class RiskParameters:
     max_position_percent: float
     max_drawdown: float
+    min_confidence: float = 0.5
+    risk_mode: str = "normal"  # "normal" or "conservative"
 
 
 ML_MODEL_PATH = (
@@ -32,6 +35,44 @@ class RiskManager:
         """Initialize with risk parameters."""
         self._params = params
         self._current_drawdown = 0.0
+        self._volume_factor = 1.0
+        self._default_confidence = params.min_confidence
+
+    # ------------------------------------------------------------------
+    def auto_adjust(self, trades: int, threshold: float) -> None:
+        """Automatically switch risk mode based on recent drawdown."""
+
+        recent = performance_analyzer.get_recent_trades(trades)
+        equity = performance_analyzer.pnl_equity(recent)
+        dd = performance_analyzer.max_drawdown(equity)
+        self._current_drawdown = dd
+        if dd > threshold:
+            self._set_conservative()
+        else:
+            self._set_normal()
+
+    # ------------------------------------------------------------------
+    def _set_conservative(self) -> None:
+        if self._params.risk_mode == "conservative":
+            return
+        logging.warning("Switching to conservative risk mode")
+        self._params.risk_mode = "conservative"
+        self._volume_factor = 0.5
+        self._params.min_confidence = max(0.9, self._params.min_confidence)
+
+    def _set_normal(self) -> None:
+        if self._params.risk_mode == "normal":
+            return
+        logging.info("Switching to normal risk mode")
+        self._params.risk_mode = "normal"
+        self._volume_factor = 1.0
+        self._params.min_confidence = self._default_confidence
+
+    # ------------------------------------------------------------------
+    def scale_size(self, size: float) -> float:
+        """Return trade size adjusted by current risk mode."""
+
+        return size * self._volume_factor
 
     def validate(
         self,
@@ -40,6 +81,7 @@ class RiskManager:
         features: list[float] | None = None,
     ) -> bool:
         """Check if trade size is within limits and optionally consult ML."""
+        size *= self._volume_factor
         if size > self._params.max_position_percent:
             logging.warning("Trade size %.2f exceeds limit", size)
             send_alert(

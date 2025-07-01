@@ -77,6 +77,10 @@ class GPTTrigger:
             send_alert(f"Signal rejected: unsupported direction {signal.direction}")
             return False
 
+        if self._risk_manager._params.risk_mode == "conservative":
+            logging.info("Conservative mode active - skipping GPT")
+            return False
+
         if not await self.allow():
             return False
 
@@ -87,12 +91,23 @@ class GPTTrigger:
             send_alert("Signal rejected: GPT response invalid")
             return False
 
-        if not self._risk_manager.validate(response.size):
+        if response.confidence < self._risk_manager._params.min_confidence:
+            logging.warning(
+                "GPT confidence %.2f below minimum %.2f",
+                response.confidence,
+                self._risk_manager._params.min_confidence,
+            )
+            send_alert("Signal rejected: low confidence")
+            return False
+
+        adj_size = self._risk_manager.scale_size(response.size)
+
+        if not self._risk_manager.validate(adj_size):
             logging.warning("GPT proposal rejected by risk manager")
             send_alert("Signal rejected by risk manager")
             return False
 
-        order = Order(asset=signal.asset, side=response.direction, quantity=response.size)
+        order = Order(asset=signal.asset, side=response.direction, quantity=adj_size)
         success = self._executor.place_order(order)
         if success:
             send_alert(
@@ -103,4 +118,3 @@ class GPTTrigger:
     def check_new_signals(self) -> None:
         """Placeholder for polling new trading signals."""
         logging.info("Checking for new signals")
-

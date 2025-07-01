@@ -35,7 +35,12 @@ app = FastAPI()
 TRADES: list[Trade] = []
 ACTIVE_SIGNALS: list[Signal] = []
 REJECTED_SIGNALS: list[tuple[Signal, str]] = []
-RISK_PARAMS = RiskParameters(max_position_percent=0.1, max_drawdown=5.0)
+RISK_PARAMS = RiskParameters(
+    max_position_percent=0.1,
+    max_drawdown=5.0,
+    min_confidence=0.5,
+    risk_mode="normal",
+)
 LOGS: list[str] = []
 
 
@@ -111,6 +116,8 @@ class RiskModel(BaseModel):
 
     max_position_percent: float
     max_drawdown: float
+    min_confidence: float
+    risk_mode: str
 
 
 @app.put("/risk")
@@ -120,6 +127,8 @@ def update_risk(params: RiskModel = Body(...)) -> dict[str, float]:
     logger.info("/risk PUT requested: %s", params)
     RISK_PARAMS.max_position_percent = params.max_position_percent
     RISK_PARAMS.max_drawdown = params.max_drawdown
+    RISK_PARAMS.min_confidence = params.min_confidence
+    RISK_PARAMS.risk_mode = params.risk_mode
     return asdict(RISK_PARAMS)
 
 
