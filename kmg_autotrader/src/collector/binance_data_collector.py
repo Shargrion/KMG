@@ -8,8 +8,16 @@ import os
 from dataclasses import dataclass
 from typing import Any, Iterable, List
 
-import asyncpg
-from binance import AsyncClient, BinanceSocketManager
+try:
+    import asyncpg
+except ImportError:  # pragma: no cover - optional dependency
+    asyncpg = None
+
+try:
+    from binance import AsyncClient, BinanceSocketManager
+except ImportError:  # pragma: no cover - optional dependency
+    AsyncClient = None
+    BinanceSocketManager = None
 
 
 @dataclass

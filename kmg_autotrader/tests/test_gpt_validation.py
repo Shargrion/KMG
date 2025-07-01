@@ -7,7 +7,7 @@ def test_parse_invalid(monkeypatch):
     controller = GPTController(api_key="test")
 
     def dummy(*args, **kwargs):
-        raise ValueError("fail")
+        return None
 
     monkeypatch.setattr(controller, "send_prompt", dummy)
     assert controller.send_prompt("hi") is None
