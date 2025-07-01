@@ -96,3 +96,38 @@ async def test_valid_order(monkeypatch) -> None:
     result = await trigger.process(signal, candles, 0.0)
     assert result
     assert len(executor.orders) == 1
+
+
+@pytest.mark.asyncio
+async def test_schema_fallback(monkeypatch) -> None:
+    def fake_create(*args, **kwargs):
+        resp = {"direction": "BUY", "size": 0.5, "stop_loss": 1, "confidence": 0.9}
+        json_str = __import__("json").dumps(resp)
+
+        class R:
+            choices = [type("obj", (), {"message": type("m", (), {"content": json_str})()})]
+
+        return R()
+
+    monkeypatch.setattr(
+        "src.trigger.gpt_controller.openai.ChatCompletion.create", fake_create
+    )
+
+    called = {"n": 0}
+
+    def fake_rules(data):
+        called["n"] += 1
+        return []
+
+    monkeypatch.setattr("src.trigger.gpt_controller.evaluate_rules", fake_rules)
+
+    controller = GPTController(api_key="test")
+    executor = DummyExecutor()
+    risk = RiskManager(RiskParameters(1.0, 10.0))
+    trigger = GPTTrigger(controller, risk, executor, max_per_hour=5)
+    candles = [Candle(0, 0, 0, 0, 0, 0, 0) for _ in range(10)]
+    signal = Signal("BTC", "BUY", "reason", "rule")
+
+    result = await trigger.process(signal, candles, 0.0)
+    assert not result
+    assert called["n"] == 1
