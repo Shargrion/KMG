@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
+from src.webui.alerts.telegram_bot import send_alert
+
 
 @dataclass
 class Order:
@@ -34,6 +36,9 @@ class Executor:
                 quantity=order.quantity,
             )
             logging.info("Order for %s executed", order.asset)
+            send_alert(
+                f"Order executed: {order.asset} {order.side} {order.quantity}"
+            )
             return True
         except BinanceAPIException as exc:
             logging.error("Order failed: %s", exc)

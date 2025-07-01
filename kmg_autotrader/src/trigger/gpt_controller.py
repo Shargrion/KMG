@@ -7,6 +7,8 @@ from pathlib import Path
 import openai
 from pydantic import BaseModel, ValidationError
 
+from src.webui.alerts.telegram_bot import send_alert
+
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "project_metadata" / "schema" / "gpt_response_schema.json"
 
 
@@ -40,4 +42,5 @@ class GPTController:
             return response
         except (openai.error.OpenAIError, json.JSONDecodeError, ValidationError) as exc:
             logging.error("GPT error: %s", exc)
+            send_alert(f"GPT error: {exc}")
             return None
