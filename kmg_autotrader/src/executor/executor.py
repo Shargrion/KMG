@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover - fallback
 
 from src.binance_client import BinanceClient, BinanceAPIException
 from src.trigger.gpt_controller import GPTController, GPTResponse
+from src.webui.alerts.telegram_bot import send_alert
 
 load_dotenv()
 
@@ -101,12 +102,14 @@ class Executor:
         signal: GPTResponse | None = self._gpt.send_prompt(prompt)
         if signal is None:
             logging.error("GPT returned no signal")
+            send_alert("GPT error: no signal returned")
             return False
 
         current = self._client.get_position(symbol)
         if current + signal.size > self._position_limit:
             logging.warning("Position limit exceeded for %s", symbol)
             self._log_trade(symbol, signal.direction, signal.size, 0.0, "rejected")
+            send_alert("Signal rejected: position limit exceeded")
             return False
 
         order = Order(asset=symbol, side=signal.direction, quantity=signal.size)
@@ -121,8 +124,12 @@ class Executor:
             if isinstance(result, dict):
                 price = float(result.get("price", 0) or result.get("fills", [{}])[0].get("price", 0))
             self._log_trade(symbol, signal.direction, signal.size, price, "filled")
+            send_alert(
+                f"Trade executed: {signal.direction} {signal.size:.4f} {symbol}"
+            )
             return True
         except BinanceAPIException as exc:
             logging.error("Order failed: %s", exc)
             self._log_trade(symbol, signal.direction, signal.size, 0.0, "error")
+            send_alert(f"Order failed: {exc}")
             return False

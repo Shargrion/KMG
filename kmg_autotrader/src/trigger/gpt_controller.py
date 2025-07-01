@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 
 from src.collector.binance_data_collector import Candle
 from src.risk.risk_manager import RiskParameters
+from src.webui.alerts.telegram_bot import send_alert
 
 BASE_PATH = Path(__file__).resolve().parents[2] / "project_metadata"
 SCHEMA_PATH = BASE_PATH / "schema" / "gpt_response_schema.json"
@@ -96,6 +97,7 @@ class GPTController:
         except (openai.error.OpenAIError, json.JSONDecodeError, ValidationError) as exc:
             logging.error("GPT error: %s", exc)
             raw_response = raw_response or str(exc)
+            send_alert(f"GPT error: {exc}")
             return None
         finally:
             with sqlite3.connect(DB_PATH) as conn:

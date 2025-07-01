@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pickle
 
+from src.webui.alerts.telegram_bot import send_alert
+
 
 @dataclass
 class RiskParameters:
@@ -40,13 +42,18 @@ class RiskManager:
         """Check if trade size is within limits and optionally consult ML."""
         if size > self._params.max_position_percent:
             logging.warning("Trade size %.2f exceeds limit", size)
+            send_alert(
+                f"Risk limit hit: size {size:.2f} > {self._params.max_position_percent:.2f}"
+            )
             return False
         if self._current_drawdown > self._params.max_drawdown:
             logging.error("Drawdown limit reached")
+            send_alert("Risk alert: drawdown limit reached")
             return False
         if ask_model:
             if features is None:
                 logging.error("Model requested but no features supplied")
+                send_alert("Risk check failed: no features for model")
                 return False
             try:
                 with ML_MODEL_PATH.open("rb") as f:
@@ -56,6 +63,7 @@ class RiskManager:
                 return bool(pred)
             except Exception as exc:  # noqa: BLE001
                 logging.error("Model inference failed: %s", exc)
+                send_alert(f"Risk model error: {exc}")
                 return False
 
         logging.debug("Risk validation passed for size %.2f", size)
