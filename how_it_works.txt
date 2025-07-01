@@ -1,0 +1,35 @@
+The KMG Autotrader is organised as a collection of small Python modules under
+`kmg_autotrader/src`.  Each module focuses on a single responsibility and is
+extensively documented with type hints and docstrings.
+
+Overview of the main files:
+
+* **main.py** – starting point that configures all components and launches the
+  scheduler and web server.
+* **src/collector/binance_data_collector.py** – connects to the Binance API,
+  downloads historical candles, subscribes to the WebSocket stream and writes
+  candles to PostgreSQL.
+* **src/evaluator/rule_evaluator.py** – produces basic trading signals from raw
+  market data.  Signals include the asset, direction and a textual reason.
+* **src/trigger/gpt_controller.py** – builds prompts for the OpenAI API,
+  validates the JSON reply against a schema and stores GPT logs.
+* **src/trigger/gpt_trigger.py** – rate‑limits GPT access, combines rule signals
+  with GPT responses and passes validated orders to the risk layer.
+* **src/risk/risk_manager.py** – enforces position limits and drawdown
+  thresholds.  It can automatically switch to a conservative mode if losses
+  accumulate.
+* **src/executor/executor.py** – communicates with Binance using the local
+  `BinanceClient` wrapper, logs orders and alerts on errors.
+* **src/analysis/performance_analyzer.py** – calculates PnL, win rate and
+  drawdown statistics from the trade log stored in PostgreSQL.
+* **src/analysis/ml_trainer.py** – loads past trades, extracts simple features
+  and trains a lightweight ML model to assist the risk manager.
+* **src/webui/backend.py** – FastAPI application serving the dashboard,
+  metrics, risk configuration and logs.
+* **src/scheduler.py** – tiny job scheduler used by `main.py` to periodically
+  check for new signals, update the ML model and export daily reports.
+
+The `project_metadata` directory stores the GPT schema, the trade log database
+and trained ML models.  Configuration values such as API keys and risk
+parameters are read from `.env`.  All modules include logging and graceful error
+handling so that failures in one component do not crash the entire system.
