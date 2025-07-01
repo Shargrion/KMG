@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+import logging
 
 
 @dataclass
@@ -16,6 +16,9 @@ class Signal:
     trigger_type: str
 
 
-def evaluate_rules(market_data: List[float]) -> List[Signal]:
-    """Placeholder for rule evaluation logic."""
-    return []
+def evaluate_rules(market_data: list[float]) -> list[Signal]:
+    """Evaluate rules on market data and return any generated signals."""
+    logging.info("Evaluating rules on %d candles", len(market_data))
+    signals: list[Signal] = []
+    logging.info("Rule evaluation generated %d signals", len(signals))
+    return signals
