@@ -89,3 +89,8 @@ class GPTTrigger:
 
         order = Order(asset=signal.asset, side=response.direction, quantity=response.size)
         return self._executor.place_order(order)
+
+    def check_new_signals(self) -> None:
+        """Placeholder for polling new trading signals."""
+        logging.info("Checking for new signals")
+

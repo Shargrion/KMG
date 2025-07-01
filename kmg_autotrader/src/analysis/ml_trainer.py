@@ -190,3 +190,12 @@ def train() -> None:
 
 __all__ = ["train", "_load_trades", "_build_features", "TradeLog", "MODEL_PATH", "DB_PATH"]
 
+
+
+def update_model() -> None:
+    """Public entry for scheduler to retrain the model."""
+    logging.info("Updating ML model")
+    train()
+
+__all__.append("update_model")
+
