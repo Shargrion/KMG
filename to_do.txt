@@ -1,0 +1,192 @@
+=========================
+KMG-Autotrader — EXTENDED TECHNICAL ROADMAP
+=========================
+
+📌 PROJECT GOAL
+-------------------------
+Develop a resilient, self-optimizing, GPT-assisted crypto trading system that autonomously:
+- Ingests and stores market data
+- Generates rule-based + GPT-assisted signals
+- Validates and filters actions via strict risk management
+- Executes trades on Binance
+- Analyzes performance and trains models
+- Provides a Web UI for control and monitoring
+- Automatically deploys on Linux servers with a single command
+
+=========================
+🔁 WORKFLOW (FULL FLOWCHART)
+-------------------------
+
+1. **System Boot**
+   - Load `.env` configs (API keys, DB URL, thresholds)
+   - Launch main scheduler loop
+
+2. **Data Collection**
+   - On first run, fetch 1 year of historical OHLCV data via Binance REST
+   - Store candles to `market_data` table
+   - Start live WebSocket stream (price ticker, trades)
+   - Each update:
+     - Write raw price data to DB
+     - Forward snapshot to rule evaluator
+
+3. **Rule Evaluation**
+   - Compute indicators: SMA(10, 50), RSI, ATR, Volume avg
+   - If trigger pattern met (e.g., crossover, RSI oversold, volatility spike):
+     - Form structured signal:
+       ```json
+       {
+         "asset": "BTCUSDT",
+         "direction": "BUY",
+         "reason": "RSI<25 + SMA cross",
+         "trigger_type": "rule"
+       }
+       ```
+
+4. **GPT Triggering**
+   - If signal approved by rule layer and meets uncertainty conditions:
+     - Check if GPT call allowed (max N/hour)
+     - Build prompt from:
+       - last 50 candles
+       - rule signal summary
+       - recent trade history
+     - Send prompt to OpenAI
+     - Receive structured response:
+       ```json
+       {
+         "direction": "BUY",
+         "size": 0.15,
+         "stop_loss": 2.0,
+         "take_profit": 4.5,
+         "confidence": 0.84
+       }
+       ```
+
+5. **GPT Response Validation**
+   - Validate JSON structure via schema
+   - Check each value is safe:
+     - size in [0.01, 1.0]
+     - stop < take
+     - confidence > 0.5
+   - If validation fails → fallback to rule signal only
+
+6. **Risk Evaluation**
+   - Load current balance from Binance
+   - Compute current exposure, realized and unrealized PnL
+   - Apply constraints:
+     - max_position_size %
+     - max_daily_loss
+     - cooldown after 3 losses
+   - If fails → reject signal and log to DB with reason
+
+7. **Trade Execution**
+   - Place order via BinanceClient (type: MARKET or LIMIT)
+   - Store order ID, timestamp, asset, direction, size, price
+   - On fill → log as trade + notify WebUI
+   - If error → retry or alert
+
+8. **Performance Analysis**
+   - Update metrics:
+     - win/loss ratio
+     - max drawdown
+     - total return
+     - daily stats
+   - Save metrics to `performance` table
+   - Available to WebUI via /metrics endpoint
+
+9. **ML Trainer (daily)**
+   - Load:
+     - signals, GPT responses
+     - trade outcomes
+     - market features
+   - Train XGBoost model for binary classification (success/failure)
+   - Save `.pkl` in `MLModels/`
+   - Expose `/model/status` via API
+
+10. **Web UI**
+   - Flask backend + static frontend
+   - Features:
+     - live PnL graph
+     - list of current signals
+     - rejected signal log
+     - configuration editor (risk, GPT)
+     - model monitor (/ml)
+
+11. **Alerts**
+   - Telegram bot on:
+     - failed order
+     - rule/gpt mismatch
+     - GPT error or invalid format
+     - drawdown breach
+
+=========================
+📁 FILE STRUCTURE OVERVIEW
+-------------------------
+src/
+├── collector/
+│   └── binance_data_collector.py       # REST + WebSocket with reconnect, DB writer
+├── evaluator/
+│   └── rule_evaluator.py               # technical signal generation logic
+├── trigger/
+│   ├── gpt_trigger.py                  # schedule + rate-limiting logic
+│   └── gpt_controller.py               # prompt build + validation
+├── risk/
+│   └── risk_manager.py                 # exposure + drawdown guardrails
+├── executor/
+│   └── executor.py                     # binance API wrapper + retry handler
+├── analysis/
+│   ├── performance_analyzer.py        # metrics calculator
+│   └── ml_trainer.py                  # model training + feedback system
+├── webui/
+│   ├── backend.py                     # REST API, WebSocket, config
+│   ├── templates/                     # Jinja2 pages
+│   ├── static/                        # JS, CSS
+│   └── alerts/
+│       └── telegram_bot.py            # alert system
+project_metadata/
+├── schema/gpt_response_schema.json
+├── gpt_log_archive.db
+└── MLModels/model_v1.pkl
+main.py                                 # orchestrator: scheduler, entrypoint
+requirements.txt
+.env.example
+install.sh
+README.md
+
+=========================
+⚙️ INSTALL.SH (OVERVIEW)
+-------------------------
+install.sh must:
+- Check for Python3, pip, venv
+- Install PostgreSQL
+- Create database + user
+- Create virtual environment
+- Install pip deps from requirements.txt
+- Echo next steps: set .env, run `main.py`
+
+=========================
+✅ IMPLEMENTATION NOTES
+-------------------------
+- Every `.py` file must be:
+  - Fully typed
+  - Contain logging and error handling
+  - Use dataclasses where possible
+  - Commented in full, especially:
+    - Indicators formulas
+    - Prompt formatting
+    - Risk checks
+    - API call params
+- Write unit tests for:
+  - Collector (mock Binance)
+  - Risk checks (parameterized)
+  - GPT validation (valid/invalid)
+  - Performance metrics (mock trades)
+
+=========================
+📦 OUTPUT
+-------------------------
+This file can be directly handed to GPT Codex or a senior backend/devops engineer to implement in full. It covers:
+- Logic
+- Responsibilities
+- Integration points
+- Risk handling
+- Deployment

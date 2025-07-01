@@ -1,0 +1,16 @@
+name: KMG-Autotrader
+description: |
+  Build a resilient, GPT-assisted crypto trading bot using Binance API, PostgreSQL, and a WebUI for monitoring. Use OpenAI GPT for strategy evaluation, with strict risk validation and fallback. Deploy with install.sh.
+files:
+  - agent.md
+  - to_do.txt
+language: python
+environment: linux
+tools:
+  - python
+  - postgresql
+  - openai
+  - binance
+  - fastapi
+  - telegram
+  - chartjs
