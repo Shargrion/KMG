@@ -12,12 +12,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from src.analysis.performance_analyzer import Trade, compute_metrics
+from src.analysis.performance_analyzer import (
+    Trade,
+    compute_metrics,
+    compute_db_metrics,
+    get_recent_trades,
+)
 from src.evaluator.rule_evaluator import Signal
 from src.risk.risk_manager import RiskParameters
 
 logger = logging.getLogger(__name__)
-
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -26,8 +30,7 @@ app = FastAPI()
 
 
 # ---------------------------------------------------------------------------
-# In-memory stores. In a real implementation these would be backed by a
-# database. They are kept extremely simple here for demonstration purposes.
+# In-memory stores used mainly for tests. Real usage relies on the database.
 # ---------------------------------------------------------------------------
 TRADES: list[Trade] = []
 ACTIVE_SIGNALS: list[Signal] = []
@@ -70,23 +73,28 @@ def _gather_metrics() -> dict[str, Any]:
 
 @app.get("/metrics")
 def metrics() -> dict[str, Any]:
-    """Return PnL statistics and equity curve."""
+    """Return PnL statistics from the database."""
 
     logger.info("/metrics requested")
-    return _gather_metrics()
+    return compute_db_metrics()
 
 
 @app.get("/signals")
-def signals() -> dict[str, Any]:
-    """Return active and rejected trading signals."""
+def signals(limit: int = 20) -> dict[str, Any]:
+    """Return last N trading signals and their status."""
 
-    logger.info("/signals requested")
+    logger.info("/signals requested limit=%d", limit)
+    trades = get_recent_trades(limit)
     return {
-        "active": [asdict(sig) for sig in ACTIVE_SIGNALS],
-        "rejected": [
-            {"signal": asdict(sig), "reason": reason}
-            for sig, reason in REJECTED_SIGNALS
-        ],
+        "signals": [
+            {
+                "timestamp": t.timestamp.isoformat(),
+                "symbol": t.symbol,
+                "side": t.side,
+                "status": t.status,
+            }
+            for t in trades[::-1]
+        ]
     }
 
 
@@ -121,4 +129,3 @@ def logs(limit: int = 20) -> dict[str, list[str]]:
 
     logger.info("/logs requested, limit=%d", limit)
     return {"entries": LOGS[-limit:]}
-

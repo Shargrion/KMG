@@ -8,3 +8,4 @@ pydantic
 openai
 joblib
 scikit-learn
+SQLAlchemy
