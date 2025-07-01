@@ -1,0 +1,30 @@
+@startuml
+actor Trader
+node "Web UI" as Web
+database PostgreSQL
+cloud Binance
+cloud "OpenAI API" as OpenAI
+component Collector
+component RuleEvaluator
+component GPTTrigger
+component GPTController
+component RiskManager
+component Executor
+component PerformanceAnalyzer
+component MLTrainer
+Trader --> Web : monitor / configure
+Collector --> Binance : price data
+Collector --> PostgreSQL : market_data
+RuleEvaluator --> Collector : candles
+RuleEvaluator --> GPTTrigger : signal
+GPTTrigger --> GPTController : request decision
+GPTController --> OpenAI : prompt
+GPTController --> GPTTrigger : response
+GPTTrigger --> RiskManager : propose order
+RiskManager --> Executor : approved order
+Executor --> Binance : place order
+Executor --> PostgreSQL : trade log
+PostgreSQL --> PerformanceAnalyzer : trades
+MLTrainer --> PostgreSQL : load trades
+Web --> PostgreSQL : metrics
+@enduml

@@ -1,0 +1,40 @@
+KMG Autotrader requires Python 3.11+, PostgreSQL and access to the Binance and
+OpenAI APIs.  The easiest way to install everything is to run `install.sh` from
+the `kmg_autotrader` directory.  The script installs system packages, creates the
+PostgreSQL database and sets up a virtual environment with all Python
+dependencies.
+
+After installation copy `.env.example` to `.env` and fill in your API keys:
+
+```
+OPENAI_API_KEY=your-openai-key
+BINANCE_API_KEY=your-binance-key
+BINANCE_SECRET_KEY=your-binance-secret
+POSTGRES_URL=postgresql://kmg_user:password@localhost/kmg_autotrader
+TELEGRAM_TOKEN=your-telegram-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+MAX_POSITION_PERCENT=0.2
+MAX_DRAWDOWN=5.0
+GPT_CALL_LIMIT_PER_HOUR=10
+MIN_CONFIDENCE=0.5
+RISK_MODE=normal
+```
+
+Running `python main.py` starts three long running tasks:
+
+1. The **Binance data collector** which stores market data in PostgreSQL.
+2. The **FastAPI web interface** on http://localhost:8000 for monitoring trades
+   and editing risk settings.
+3. A **scheduler** that periodically scans for new signals, updates the ML model
+   and exports performance reports.
+
+Trading on a live Binance account involves real money.  Each order will incur
+exchange fees and, depending on market movements, can lead to losses.  In
+addition, each call to the OpenAI API is billed by OpenAI according to their
+current pricing.  Be sure to keep track of your API usage and only run the bot
+with funds you are prepared to risk.
+
+To run the system in the background you can use `screen`, `tmux` or create a
+simple `systemd` service that executes `python main.py` inside the project
+virtual environment.  Logs from all components are written to the console and to
+the `project_metadata` directory.
