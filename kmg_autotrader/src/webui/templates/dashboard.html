@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>KMG Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>KMG Dashboard</h1>
+    <canvas id="equityChart" width="400" height="200"></canvas>
+
+    <h2>Recent Trades</h2>
+    <ul>
+        {% for trade in trades %}
+        <li>{{ trade }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Rejection Reasons</h2>
+    <ul>
+        {% for r in rejections %}
+        <li>{{ r }}</li>
+        {% endfor %}
+    </ul>
+
+    <script>
+    const equity = {{ equity | tojson }};
+    const ctx = document.getElementById('equityChart');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: equity.map((_, i) => i + 1),
+            datasets: [{
+                label: 'Equity',
+                data: equity,
+                borderColor: 'blue',
+                fill: false
+            }]
+        }
+    });
+    </script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
