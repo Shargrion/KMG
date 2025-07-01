@@ -206,3 +206,34 @@ def compute_db_metrics(limit: int = 100) -> dict[str, float]:
         metrics["max_drawdown"],
     )
     return metrics
+
+
+def export_daily_report(path: Path | None = None) -> None:
+    """Export daily performance metrics to a file."""
+    path = path or (
+        Path(__file__).resolve().parents[2] / "project_metadata" / "daily_report.txt"
+    )
+    metrics = compute_db_metrics()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as f:
+            f.write(json.dumps(metrics) + "\n")
+        logging.info("Daily report exported to %s", path)
+    except Exception as exc:  # noqa: BLE001
+        logging.error("Failed exporting report: %s", exc)
+
+
+
+
+__all__ = [
+    "Trade",
+    "TradeLog",
+    "get_recent_trades",
+    "compute_metrics",
+    "compute_db_metrics",
+    "pnl_equity",
+    "winrate",
+    "max_drawdown",
+    "export_daily_report",
+]
+
