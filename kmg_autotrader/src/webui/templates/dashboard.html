@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>KMG Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>KMG Dashboard</h1>
+
+    <canvas id="equityChart" width="400" height="200"></canvas>
+    <script>
+        const equity = {{ equity_curve | tojson }};
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: equity.map((_, idx) => idx + 1),
+                datasets: [{
+                    label: 'Equity Curve',
+                    data: equity,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    fill: false,
+                }]
+            }
+        });
+    </script>
+
+    <h2>Latest Trades</h2>
+    <ul>
+    {% for trade in trades %}
+        <li>{{ trade.pnl }}</li>
+    {% else %}
+        <li>No trades yet</li>
+    {% endfor %}
+    </ul>
+
+    <h2>Rejected Signals</h2>
+    <ul>
+    {% for item in rejected_signals %}
+        <li>{{ item.reason }}</li>
+    {% else %}
+        <li>No rejections</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
