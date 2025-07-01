@@ -5,3 +5,6 @@ fastapi
 uvicorn
 python-dotenv
 pydantic
+openai
+joblib
+scikit-learn
