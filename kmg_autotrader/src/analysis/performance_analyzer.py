@@ -14,10 +14,21 @@ from collections import deque
 import logging
 from typing import Iterable, List, Tuple
 
-from sqlalchemy.orm import Session
+from typing import Any
 
-from src.db import SessionLocal
-from src.db.models import TradeLog, TradeStatus
+try:  # Optional SQLAlchemy import for test environments without the package
+    from sqlalchemy.orm import Session
+    from src.db import SessionLocal
+    from src.db.models import TradeLog, TradeStatus
+
+    _SQL_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - environment may lack SQLAlchemy
+    Session = Any  # type: ignore
+    SessionLocal = None  # type: ignore
+    TradeLog = Any  # type: ignore
+    TradeStatus = Any  # type: ignore
+    _SQL_AVAILABLE = False
+    logging.warning("SQLAlchemy not installed - database features disabled")
 
 
 @dataclass
@@ -49,11 +60,14 @@ def compute_metrics(trades: list[Trade]) -> dict[str, float]:
 
 # --- Database backed utilities -------------------------------------------------
 
-_CACHE: deque[TradeLog] = deque(maxlen=100)
+# cache of the latest trades pulled from the database
+_CACHE: deque = deque(maxlen=100)
 
 
 def _refresh_cache(session: Session) -> None:
     """Load the latest trades from the database into the local cache."""
+    if not _SQL_AVAILABLE:
+        raise RuntimeError("SQLAlchemy required for DB operations")
     logging.debug("Refreshing trade cache")
     trades = (
         session.query(TradeLog)
@@ -67,6 +81,8 @@ def _refresh_cache(session: Session) -> None:
 
 def get_recent_trades(session: Session | None = None) -> list[TradeLog]:
     """Return cached recent trades, reloading if the cache is empty."""
+    if not _SQL_AVAILABLE:
+        raise RuntimeError("SQLAlchemy required for DB operations")
     session = session or SessionLocal()
     if not _CACHE:
         _refresh_cache(session)
@@ -109,8 +125,12 @@ def max_drawdown(curve: Iterable[Tuple[datetime, float]]) -> float:
     return max_dd
 
 
-def compute_db_metrics(session: Session | None = None) -> dict[str, float | list[tuple[str, float]]]:
+def compute_db_metrics(
+    session: Session | None = None,
+) -> dict[str, float | list[tuple[str, float]]]:
     """Compute metrics using ``TradeLog`` records from the database."""
+    if not _SQL_AVAILABLE:
+        raise RuntimeError("SQLAlchemy required for DB operations")
     session = session or SessionLocal()
     trades = get_recent_trades(session)
     curve = equity_curve(trades)
