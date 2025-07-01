@@ -2,13 +2,14 @@
 
 import asyncio
 import logging
+import sqlite3
 from typing import Iterable, TYPE_CHECKING, Any
 
 from src.collector.binance_data_collector import Candle
 from src.evaluator.rule_evaluator import Signal
 from src.risk.risk_manager import RiskManager
 from src.webui.alerts.telegram_bot import send_alert
-from .gpt_controller import GPTController
+from .gpt_controller import GPTController, DB_PATH
 
 if TYPE_CHECKING:  # pragma: no cover - only for typing
     from src.executor.executor import Executor, Order
@@ -46,12 +47,24 @@ class GPTTrigger:
         self._count = 0
         self._lock = asyncio.Lock()
 
+    def _log_refusal(self, reason: str) -> None:
+        """Record a refusal reason to the GPT log database."""
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    "INSERT INTO gpt_logs(prompt, response, success, reason) VALUES (?, ?, ?, ?)",
+                    ("", "", 0, reason),
+                )
+        except sqlite3.DatabaseError as exc:  # pragma: no cover - log failure
+            logging.error("Failed to log GPT refusal: %s", exc)
+
     async def allow(self) -> bool:
         """Return ``True`` if a GPT call is permitted."""
         async with self._lock:
             if self._count >= self._max_per_hour:
                 logging.warning("GPT call blocked: limit reached")
                 send_alert("GPT limit reached: signal skipped")
+                self._log_refusal("limit reached")
                 return False
             self._count += 1
             logging.debug("GPT call allowed (%d/%d)", self._count, self._max_per_hour)
@@ -75,10 +88,21 @@ class GPTTrigger:
         if signal.direction not in {"BUY", "SELL"}:
             logging.warning("Unsupported signal direction: %s", signal.direction)
             send_alert(f"Signal rejected: unsupported direction {signal.direction}")
+            self._log_refusal("unsupported direction")
             return False
 
         if self._risk_manager._params.risk_mode == "conservative":
             logging.info("Conservative mode active - skipping GPT")
+            self._log_refusal("conservative mode")
+            return False
+
+        if signal.score < self._risk_manager._params.min_gpt_trigger_confidence:
+            reason = (
+                f"Rule score {signal.score:.2f} below threshold "
+                f"{self._risk_manager._params.min_gpt_trigger_confidence:.2f}"
+            )
+            logging.info(reason)
+            self._log_refusal(reason)
             return False
 
         if not await self.allow():
@@ -89,6 +113,7 @@ class GPTTrigger:
         )
         if response is None:
             send_alert("Signal rejected: GPT response invalid")
+            self._log_refusal("invalid GPT response")
             return False
 
         if response.confidence < self._risk_manager._params.min_confidence:
@@ -98,6 +123,7 @@ class GPTTrigger:
                 self._risk_manager._params.min_confidence,
             )
             send_alert("Signal rejected: low confidence")
+            self._log_refusal("low GPT confidence")
             return False
 
         adj_size = self._risk_manager.scale_size(response.size)
@@ -105,6 +131,7 @@ class GPTTrigger:
         if not self._risk_manager.validate(adj_size):
             logging.warning("GPT proposal rejected by risk manager")
             send_alert("Signal rejected by risk manager")
+            self._log_refusal("risk manager rejection")
             return False
 
         order = Order(asset=signal.asset, side=response.direction, quantity=adj_size)

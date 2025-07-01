@@ -40,6 +40,7 @@ RISK_PARAMS = RiskParameters(
     max_drawdown=5.0,
     min_confidence=0.5,
     risk_mode="normal",
+    min_gpt_trigger_confidence=0.8,
 )
 LOGS: list[str] = []
 
@@ -118,6 +119,7 @@ class RiskModel(BaseModel):
     max_drawdown: float
     min_confidence: float
     risk_mode: str
+    min_gpt_trigger_confidence: float
 
 
 @app.put("/risk")
@@ -129,6 +131,7 @@ def update_risk(params: RiskModel = Body(...)) -> dict[str, float]:
     RISK_PARAMS.max_drawdown = params.max_drawdown
     RISK_PARAMS.min_confidence = params.min_confidence
     RISK_PARAMS.risk_mode = params.risk_mode
+    RISK_PARAMS.min_gpt_trigger_confidence = params.min_gpt_trigger_confidence
     return asdict(RISK_PARAMS)
 
 
